@@ -172,13 +172,6 @@ Ports:
 
 ![Kubernetes Dashboard replica sets](docs/screenshots/screenshot-09.png)
 
-## Security note (important)
-
-Real credentials must never be committed. `k8s/base/secret.yaml` and `eshtry-mny/values.yaml`
-ship with `CHANGE_ME` placeholders only. To deploy:
-
-- Helm: `helm upgrade --install eshtry-mny . -n eshtry-mny --set secrets.mongoUsername=... --set secrets.mongoPassword=... --set secrets.mongoCluster=... --set secrets.mongoDbname=... --set secrets.accessToken=...`
-- Raw manifests: copy `k8s/base/secret.example.yaml` to a local, gitignored `k8s/base/secret.local.yaml`, fill in real values, and `kubectl apply -f k8s/base/secret.local.yaml` instead of committing it.
 
 If real credentials were ever committed to this repository's git history, they must be treated as
 compromised: rotate the MongoDB Atlas database user password and rotate/regenerate the JWT
