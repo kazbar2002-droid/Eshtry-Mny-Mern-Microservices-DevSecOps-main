@@ -2,8 +2,16 @@ import { Fragment, useEffect, useState } from "react";
 import "../Style/Cart.css";
 import NavBar from "../component/NavBar";
 
+declare global {
+  interface Window {
+    refreshCart?: () => void;
+  }
+}
+
+type CartProduct = { _id: string; image: string; name: string; category: string; price: number };
+
 function Cart() {
-  const [cartData, setCartData] = useState({ total: 0, Products: [] });
+  const [cartData, setCartData] = useState<{ total: number; Products: CartProduct[] }>({ total: 0, Products: [] });
   const [loading, setLoading] = useState(true);
 
   const fetchCartData = async () => {

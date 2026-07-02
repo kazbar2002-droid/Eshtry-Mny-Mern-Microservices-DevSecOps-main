@@ -2,8 +2,16 @@ import "../Style/profile.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Fragment, useState, useEffect } from "react";
 
+type ProductDetail = {
+  image?: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  price?: number;
+};
+
 function ProductInfo() {
-  const [inputValue, setInputValue] = useState({});
+  const [inputValue, setInputValue] = useState<ProductDetail>({});
   const productID = localStorage.getItem("productID");
 
   useEffect(() => {

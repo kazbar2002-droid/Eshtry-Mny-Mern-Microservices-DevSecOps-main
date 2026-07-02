@@ -3,8 +3,17 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import NavBar from "../component/NavBar";
 import { useState, useEffect, Fragment } from "react";
 
+type UserProfile = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  age?: number;
+  phone?: string;
+  gender?: string;
+};
+
 function Profile() {
-  const [user, setUser] = useState({});
+  const [user, setUser] = useState<UserProfile>({});
 
   useEffect(() => {
     const token = localStorage.getItem("token");
