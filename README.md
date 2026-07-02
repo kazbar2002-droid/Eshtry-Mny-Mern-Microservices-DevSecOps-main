@@ -172,7 +172,3 @@ Ports:
 
 ![Kubernetes Dashboard replica sets](docs/screenshots/screenshot-09.png)
 
-
-If real credentials were ever committed to this repository's git history, they must be treated as
-compromised: rotate the MongoDB Atlas database user password and rotate/regenerate the JWT
-`ACCESS_TOKEN` value, independently of any code change.
