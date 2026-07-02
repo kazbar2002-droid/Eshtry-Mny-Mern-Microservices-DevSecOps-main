@@ -1,0 +1,23 @@
+replicaCount: 1
+imagePullPolicy: IfNotPresent
+
+# MongoDB Atlas + JWT
+secrets:
+  mongoUsername: "CHANGE_ME"
+  mongoPassword: "CHANGE_ME"
+  mongoCluster: "CHANGE_ME"
+  mongoDbname: "CHANGE_ME"
+  accessToken: "CHANGE_ME"
+
+# Images from Docker Hub
+images:
+  user: minac4/eshtry-mny-user:latest
+  product: minac4/eshtry-mny-product:latest
+  cart: minac4/eshtry-mny-cart:latest
+  frontend: minac4/eshtry-mny-frontend:latest
+
+# ====================== Ingress ======================
+ingress:
+  enabled: true
+  className: nginx
+  host: eshtry-mny.local   # 

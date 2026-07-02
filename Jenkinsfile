@@ -1,0 +1,118 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        SONAR_SCANNER = "/opt/sonar-scanner/bin/sonar-scanner"
+    }
+
+    stages {
+
+        // Checkout source code from Git repository
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // Scan for leaked secrets
+        stage('Security: Secret Scan (gitleaks)') {
+            steps {
+                sh 'docker run --rm -v $(pwd):/repo zricethezav/gitleaks:latest detect --source=/repo --config=/repo/.gitleaks.toml --no-git -v'
+            }
+        }
+
+        // Run SonarQube static code analysis
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh """
+                            ${SONAR_SCANNER} \
+                            -Dsonar.projectKey=eshtry-mny \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=http://localhost:9000 \
+                            -Dsonar.login=$SONAR_TOKEN
+                        """
+                    }
+                }
+            }
+        }
+
+        // Build Docker images for all microservices
+        stage('Build Docker Images') {
+            steps {
+                sh "docker build -t minac4/eshtry-mny-user:${IMAGE_TAG} ./User"
+                sh "docker build -t minac4/eshtry-mny-product:${IMAGE_TAG} ./Product"
+                sh "docker build -t minac4/eshtry-mny-cart:${IMAGE_TAG} ./Cart"
+                sh "docker build -t minac4/eshtry-mny-frontend:${IMAGE_TAG} ./front-end"
+            }
+        }
+
+        // Run security checks for Node.js dependencies
+        stage('Security: Dependency Audit') {
+            steps {
+                sh 'cd User && npm audit || true'
+                sh 'cd Product && npm audit || true'
+                sh 'cd Cart && npm audit || true'
+                sh 'cd front-end && npm audit || true'
+            }
+        }
+
+        // Scan Docker images for vulnerabilities using Trivy
+        stage('Security: Docker Scan (Trivy)') {
+            steps {
+                sh """
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-user:${IMAGE_TAG} --severity HIGH,CRITICAL --exit-code 0
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-product:${IMAGE_TAG} --severity HIGH,CRITICAL --exit-code 0
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-cart:${IMAGE_TAG} --severity HIGH,CRITICAL --exit-code 0
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-frontend:${IMAGE_TAG} --severity HIGH,CRITICAL --exit-code 0
+                """
+                sh """
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-user:${IMAGE_TAG} --severity CRITICAL --exit-code 1
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-product:${IMAGE_TAG} --severity CRITICAL --exit-code 1
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-cart:${IMAGE_TAG} --severity CRITICAL --exit-code 1
+                    docker run --rm aquasec/trivy image minac4/eshtry-mny-frontend:${IMAGE_TAG} --severity CRITICAL --exit-code 1
+                """
+            }
+        }
+
+        // Push Docker images to Docker Hub registry
+        stage('Push Images to Docker Hub') {
+            steps {
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                sh "docker push minac4/eshtry-mny-user:${IMAGE_TAG}"
+                sh "docker push minac4/eshtry-mny-product:${IMAGE_TAG}"
+                sh "docker push minac4/eshtry-mny-cart:${IMAGE_TAG}"
+                sh "docker push minac4/eshtry-mny-frontend:${IMAGE_TAG}"
+            }
+        }
+
+        // Deploy application to Kubernetes cluster using Helm
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh """
+                    export KUBECONFIG=/var/lib/jenkins/.kube/config
+                    kubectl get nodes
+                    cd eshtry-mny
+                    helm upgrade --install eshtry-mny . \
+                      --set images.user=minac4/eshtry-mny-user:${IMAGE_TAG} \
+                      --set images.product=minac4/eshtry-mny-product:${IMAGE_TAG} \
+                      --set images.cart=minac4/eshtry-mny-cart:${IMAGE_TAG} \
+                      --set images.frontend=minac4/eshtry-mny-frontend:${IMAGE_TAG}
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline Success'
+        }
+        failure {
+            echo 'Pipeline Failed'
+        }
+    }
+}
